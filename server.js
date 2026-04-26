@@ -6,7 +6,7 @@ const port = 3000;
 const filePath = path.join(__dirname, 'movies.json');
 
 const server = http.createServer((req, res) => {
-  
+   
   if (req.method === 'GET' && req.url === '/movies') {
     fs.readFile(filePath, 'utf8', (err, data) => {
       if (err) {
@@ -29,41 +29,48 @@ const server = http.createServer((req, res) => {
         let movies = JSON.parse(data || '[]');
         movies.push(newMovie);
         fs.writeFile(filePath, JSON.stringify(movies, null, 2), (err) => {
-          if (err) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: "Error saving data" }));
-            return;
-          }
           res.writeHead(201, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(newMovie));
         });
       });
     });
   }
- 
+
   else if (req.method === 'DELETE' && req.url.startsWith('/movies/')) {
-    const parts = req.url.split('/');
-    const id = parts[2];  
-
+    const id = req.url.split('/')[2];
     fs.readFile(filePath, 'utf8', (err, data) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: "Error reading file" }));
-        return;
-      }
-
       let movies = JSON.parse(data || '[]');
-     
       const filteredMovies = movies.filter(movie => String(movie.id) !== id);
-
       fs.writeFile(filePath, JSON.stringify(filteredMovies, null, 2), (err) => {
-        if (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ message: "Error saving data" }));
-          return;
-        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: "Movie deleted successfully" }));
+        res.end(JSON.stringify({ message: "Movie deleted" }));
+      });
+    });
+  }
+
+  else if (req.method === 'PUT' && req.url.startsWith('/movies/')) {
+    const id = req.url.split('/')[2];
+    let body = '';
+    req.on('data', (chunk) => { body += chunk.toString(); });
+    req.on('end', () => {
+      const updatedData = JSON.parse(body);
+      fs.readFile(filePath, 'utf8', (err, data) => {
+        let movies = JSON.parse(data || '[]');
+        const index = movies.findIndex(movie => String(movie.id) === id);
+
+        if (index !== -1) {
+ 
+          movies[index].title = updatedData.title || movies[index].title;
+          movies[index].genre = updatedData.genre || movies[index].genre;
+
+          fs.writeFile(filePath, JSON.stringify(movies, null, 2), (err) => {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(movies[index]));
+          });
+        } else {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ message: "Movie not found" }));
+        }
       });
     });
   }
